@@ -740,6 +740,33 @@ def buzzheavier(url):
             return d_url
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {str(e)}") from e
+        
+    with Session() as session:
+        tree = HTML(session.get(url).text)
+        if link := tree.xpath("//a[contains(@class, 'link-button') and contains(@class, 'gay-button')]/@hx-get"):
+            return _bhscraper("https://buzzheavier.com" + link[0])
+        elif folders := tree.xpath("//tbody[@id='tbody']/tr"):
+            details = {"contents": [], "title": "", "total_size": 0}
+            for data in folders:
+                try:
+                    filename = data.xpath(".//a")[0].text.strip()
+                    _id = data.xpath(".//a")[0].attrib.get("href", "").strip()
+                    size = data.xpath(".//td[@class='text-center']/text()")[0].strip()
+                    url = _bhscraper(f"https://buzzheavier.com{_id}", True)
+                    item = {
+                        "path": "",
+                        "filename": filename,
+                        "url": url,
+                        }            
+                    details["contents"].append(item) 
+                    size = speed_string_to_bytes(size)
+                    details["total_size"] += size
+                except:
+                    continue
+            details["title"] = tree.xpath("//span/text()")[0].strip()
+            return details
+        else:
+            raise DirectDownloadLinkException("ERROR: No download link found")
 
 def real_debrid(url: str, tor=False):
     """Real-Debrid Link Extractor (VPN Maybe Needed)
