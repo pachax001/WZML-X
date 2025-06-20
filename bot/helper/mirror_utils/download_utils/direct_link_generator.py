@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from threading import Thread
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from json import loads
 from os import path
 from uuid import uuid4
@@ -11,7 +11,7 @@ from re import findall, match, search
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from lxml.etree import HTML
-from requests import Session, session as req_session, post
+from requests import Session, session as req_session, post,get
 from urllib.parse import parse_qs, quote, unquote, urlparse, urljoin
 from cloudscraper import create_scraper
 from lk21 import Bypass
@@ -591,6 +591,8 @@ def direct_link_generator(link):
         return filelions(link)
     elif "mediafire.com" in domain:
         return mediafire(link)
+    elif "buzzheavier.com" in domain:
+        return buzzheavier(link)
     elif "osdn.net" in domain:
         return osdn(link)
     elif "github.com" in domain:
@@ -706,6 +708,38 @@ def direct_link_generator(link):
     else:
         raise DirectDownloadLinkException(f"No Direct link function found for {link}")
 
+def buzzheavier(url):
+    """
+    Generate a direct download link for buzzheavier URLs.
+    @param link: URL from buzzheavier
+    @return: Direct download link
+    """
+    pattern = r'^https?://buzzheavier\.com/[a-zA-Z0-9]+$'
+    if not match(pattern, url):
+        return url
+    def _bhscraper(url, folder=False):
+        session = Session()
+        if "/download" not in url:
+            url += "/download"
+        url = url.strip()
+        session.headers.update(
+            {
+                "referer": url.split("/download")[0],
+                "hx-current-url": url.split("/download")[0],
+                "hx-request": "true",
+                "priority": "u=1, i",
+            }
+        )
+        try:
+            response = session.get(url)
+            d_url = response.headers.get("Hx-Redirect")
+            if not d_url:
+                if not folder:
+                    raise DirectDownloadLinkException(f"ERROR: Gagal mendapatkan data")
+                return
+            return d_url
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {str(e)}") from e
 
 def real_debrid(url: str, tor=False):
     """Real-Debrid Link Extractor (VPN Maybe Needed)
