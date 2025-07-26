@@ -464,7 +464,7 @@ def is_index_link(url):
 
 
 def is_mega_link(url):
-    return "mega.nz" in url or "mega.co.nz" in url
+    return "mega.nz" in url or "https://mega.co.nz" in url
 
 
 def is_rclone_path(path):
