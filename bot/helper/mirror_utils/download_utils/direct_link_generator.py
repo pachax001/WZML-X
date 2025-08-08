@@ -1097,7 +1097,7 @@ def pixeldrain_folder(folder_id):
     try:
         # Get folder information from Pixeldrain API
         api_url = f"https://pixeldrain.com/api/list/{folder_id}"
-        response = requests.get(api_url)
+        response = get(api_url)
         response.raise_for_status()
 
         folder_data = response.json()
