@@ -1084,16 +1084,45 @@ def pixeldrain(url):
 
 
 def pixeldrain_single_file(file_id):
-    """Handle single file downloads"""
+    """Handle single file downloads - returns data in format expected by add_direct_download"""
     try:
-        response = get("https://pd.cybar.xyz/", allow_redirects=True)
-        return response.url + file_id
+        # Get file info from Pixeldrain API
+        api_url = f"https://pixeldrain.com/api/file/{file_id}/info"
+        response = get(api_url)
+        response.raise_for_status()
+
+        file_data = response.json()
+
+        if not file_data.get('success', True):  # Single file API doesn't always return success field
+            raise DirectDownloadLinkException("ERROR: Failed to retrieve file information")
+
+        # Get direct download URL
+        base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+        download_url = base_response.url + file_id
+
+        file_name = file_data.get('name', f'file_{file_id}')
+        file_size = file_data.get('size', 0)
+
+        # Return data in the format expected by add_direct_download
+        return {
+            'title': file_name,
+            'total_size': file_size,
+            'contents': [{
+                'filename': file_name,
+                'url': download_url,
+                'size': file_size
+            }],
+            'header': None  # No special headers needed for pixeldrain
+        }
+
+    except requests.RequestException as e:
+        raise DirectDownloadLinkException(f"ERROR: API request failed - {str(e)}")
     except Exception as e:
-        raise DirectDownloadLinkException(f"ERROR: Single file download failed - {str(e)}")
+        raise DirectDownloadLinkException(f"ERROR: Single file processing failed - {str(e)}")
 
 
 def pixeldrain_folder(folder_id):
-    """Handle folder downloads - returns list of download links"""
+    """Handle folder downloads - returns data in format expected by add_direct_download"""
     try:
         # Get folder information from Pixeldrain API
         api_url = f"https://pixeldrain.com/api/list/{folder_id}"
@@ -1109,8 +1138,10 @@ def pixeldrain_folder(folder_id):
         base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
         base_url = base_response.url
 
-        # Create download links for each file
-        download_links = []
+        # Create contents list in the format expected by add_direct_download
+        contents = []
+        total_size = 0
+
         for file_info in folder_data.get('files', []):
             file_id = file_info.get('id')
             file_name = file_info.get('name', 'unknown')
@@ -1118,17 +1149,19 @@ def pixeldrain_folder(folder_id):
 
             if file_id:
                 download_link = base_url + file_id
-                download_links.append({
-                    'id': file_id,
-                    'name': file_name,
-                    'size': file_size,
-                    'download_url': download_link
+                contents.append({
+                    'filename': file_name,
+                    'url': download_link,
+                    'size': file_size
                 })
+                total_size += file_size
 
+        # Return data in the format expected by add_direct_download
         return {
-            'folder_title': folder_data.get('title', 'Unknown Folder'),
-            'file_count': folder_data.get('file_count', 0),
-            'files': download_links
+            'title': folder_data.get('title', 'Unknown Folder'),
+            'total_size': total_size,
+            'contents': contents,
+            'header': None  # No special headers needed for pixeldrain
         }
 
     except requests.RequestException as e:
