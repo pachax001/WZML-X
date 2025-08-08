@@ -1110,7 +1110,8 @@ def pixeldrain_single_file(file_id):
             'contents': [{
                 'filename': file_name,
                 'url': download_url,
-                'size': file_size
+                'size': file_size,
+                'path': ''
             }],
             'header': None  # No special headers needed for pixeldrain
         }
@@ -1152,7 +1153,8 @@ def pixeldrain_folder(folder_id):
                 contents.append({
                     'filename': file_name,
                     'url': download_link,
-                    'size': file_size
+                    'size': file_size,
+                    'path': ''
                 })
                 total_size += file_size
 
