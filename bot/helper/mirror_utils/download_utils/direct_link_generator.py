@@ -1065,13 +1065,76 @@ def onedrive(link):
 #         )
 
 def pixeldrain(url):
+    """
+    Handle both single file URLs and folder URLs from Pixeldrain
+    Returns direct download link for single files or list of download links for folders
+    """
     try:
         url = url.rstrip("/")
         code = url.split("/")[-1].split("?", 1)[0]
-        response = get("https://pd.cybar.xyz/", allow_redirects=True)
-        return response.url + code
+
+        # Check if it's a folder URL (contains '/l/')
+        if '/l/' in url:
+            return pixeldrain_folder(code)
+        else:
+            return pixeldrain_single_file(code)
+
     except Exception as e:
-        raise DirectDownloadLinkException("ERROR: Direct link not found")
+        raise DirectDownloadLinkException(f"ERROR: Direct link not found - {str(e)}")
+
+
+def pixeldrain_single_file(file_id):
+    """Handle single file downloads"""
+    try:
+        response = get("https://pd.cybar.xyz/", allow_redirects=True)
+        return response.url + file_id
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: Single file download failed - {str(e)}")
+
+
+def pixeldrain_folder(folder_id):
+    """Handle folder downloads - returns list of download links"""
+    try:
+        # Get folder information from Pixeldrain API
+        api_url = f"https://pixeldrain.com/api/list/{folder_id}"
+        response = requests.get(api_url)
+        response.raise_for_status()
+
+        folder_data = response.json()
+
+        if not folder_data.get('success', False):
+            raise DirectDownloadLinkException("ERROR: Failed to retrieve folder information")
+
+        # Get base URL for downloads
+        base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+        base_url = base_response.url
+
+        # Create download links for each file
+        download_links = []
+        for file_info in folder_data.get('files', []):
+            file_id = file_info.get('id')
+            file_name = file_info.get('name', 'unknown')
+            file_size = file_info.get('size', 0)
+
+            if file_id:
+                download_link = base_url + file_id
+                download_links.append({
+                    'id': file_id,
+                    'name': file_name,
+                    'size': file_size,
+                    'download_url': download_link
+                })
+
+        return {
+            'folder_title': folder_data.get('title', 'Unknown Folder'),
+            'file_count': folder_data.get('file_count', 0),
+            'files': download_links
+        }
+
+    except requests.RequestException as e:
+        raise DirectDownloadLinkException(f"ERROR: API request failed - {str(e)}")
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: Folder processing failed - {str(e)}")
 
 
 def antfiles(url):
