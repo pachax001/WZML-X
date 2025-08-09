@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse, urljoin
 from cloudscraper import create_scraper
 from lk21 import Bypass
 from http.cookiejar import MozillaCookieJar
+import requests
 
 from bot import LOGGER, config_dict
 from bot.helper.ext_utils.bot_utils import (
