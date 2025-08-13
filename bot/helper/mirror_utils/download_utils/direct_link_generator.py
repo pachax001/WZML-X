@@ -1044,31 +1044,11 @@ def onedrive(link):
     return resp["@content.downloadUrl"]
 
 
-# def pixeldrain(url):
-#     url = url.strip("/ ")
-#     file_id = url.split("/")[-1]
-#     if url.split("/")[-2] == "l":
-#         info_link = f"https://pixeldrain.com/api/list/{file_id}"
-#         dl_link = f"https://pixeldrain.com/api/list/{file_id}/zip?download"
-#     else:
-#         info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
-#         dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
-#     with create_scraper() as session:
-#         try:
-#             resp = session.get(info_link).json()
-#         except Exception as e:
-#             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
-#     if resp["success"]:
-#         return dl_link
-#     else:
-#         raise DirectDownloadLinkException(
-#             f"ERROR: Cant't download due {resp['message']}."
-#         )
-
 def pixeldrain(url):
     """
     Handle both single file URLs and folder URLs from Pixeldrain
     Returns direct download link for single files or list of download links for folders
+    Falls back to original simple mode if new implementation fails
     """
     try:
         url = url.rstrip("/")
@@ -1081,7 +1061,44 @@ def pixeldrain(url):
             return pixeldrain_single_file(code)
 
     except Exception as e:
-        raise DirectDownloadLinkException(f"ERROR: Direct link not found - {str(e)}")
+        # Fallback to original simple download mode
+        try:
+            return pixeldrain_fallback_mode(url)
+        except Exception as fallback_error:
+            # If both methods fail, raise the original error with fallback error info
+            raise DirectDownloadLinkException(
+                f"ERROR: Both methods failed.\n"
+                f"New method: {str(e)}\n"
+                f"Fallback method: {str(fallback_error)}"
+            )
+
+
+def pixeldrain_fallback_mode(url):
+    """
+    Original/fallback implementation - returns simple direct download link
+    """
+    url = url.strip("/ ")
+    file_id = url.split("/")[-1]
+
+    if url.split("/")[-2] == "l":
+        info_link = f"https://pixeldrain.com/api/list/{file_id}"
+        dl_link = f"https://pixeldrain.com/api/list/{file_id}/zip?download"
+    else:
+        info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
+        dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
+
+    with create_scraper() as session:
+        try:
+            resp = session.get(info_link).json()
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+    if resp["success"]:
+        return dl_link
+    else:
+        raise DirectDownloadLinkException(
+            f"ERROR: Can't download due {resp['message']}."
+        )
 
 
 def pixeldrain_single_file(file_id):
