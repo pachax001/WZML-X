@@ -19,7 +19,7 @@ from http.cookiejar import MozillaCookieJar
 import requests
 import base64
 
-from bot import LOGGER, config_dict
+from bot import LOGGER, config_dict, PIXELDRAIN_API_KEY
 from bot.helper.ext_utils.bot_utils import (
     get_readable_time,
     is_share_link,
@@ -29,6 +29,7 @@ from bot.helper.ext_utils.bot_utils import (
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 from bot.helper.ext_utils.help_messages import PASSWORD_ERROR_MESSAGE
 config_dict['PIXELDRAIN_API_KEY'] = PIXELDRAIN_API_KEY
+LOGGER.info(PIXELDRAIN_API_KEY)
 _caches = {}
 user_agent = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0"
