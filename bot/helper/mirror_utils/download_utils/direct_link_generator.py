@@ -18,7 +18,7 @@ from lk21 import Bypass
 from http.cookiejar import MozillaCookieJar
 import requests
 
-from bot import LOGGER, config_dict
+from bot import LOGGER, config_dict, PIXELDRAIN_API_KEY
 from bot.helper.ext_utils.bot_utils import (
     get_readable_time,
     is_share_link,
@@ -27,7 +27,7 @@ from bot.helper.ext_utils.bot_utils import (
 )
 from bot.helper.ext_utils.exceptions import DirectDownloadLinkException
 from bot.helper.ext_utils.help_messages import PASSWORD_ERROR_MESSAGE
-
+config_dict['PIXELDRAIN_API_KEY'] = PIXELDRAIN_API_KEY
 _caches = {}
 user_agent = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0"
@@ -1044,11 +1044,161 @@ def onedrive(link):
     return resp["@content.downloadUrl"]
 
 
-def pixeldrain(url):
+# def pixeldrain(url):
+#     """
+#     Handle both single file URLs and folder URLs from Pixeldrain
+#     Returns direct download link for single files or list of download links for folders
+#     Falls back to original simple mode if new implementation fails
+#     """
+#     try:
+#         url = url.rstrip("/")
+#         code = url.split("/")[-1].split("?", 1)[0]
+#
+#         # Check if it's a folder URL (contains '/l/')
+#         if '/l/' in url:
+#             return pixeldrain_folder(code)
+#         else:
+#             return pixeldrain_single_file(code)
+#
+#     except Exception as e:
+#         # Fallback to original simple download mode
+#         try:
+#             return pixeldrain_fallback_mode(url)
+#         except Exception as fallback_error:
+#             # If both methods fail, raise the original error with fallback error info
+#             raise DirectDownloadLinkException(
+#                 f"ERROR: Both methods failed.\n"
+#                 f"New method: {str(e)}\n"
+#                 f"Fallback method: {str(fallback_error)}"
+#             )
+#
+#
+# def pixeldrain_fallback_mode(url):
+#     """
+#     Original/fallback implementation - returns simple direct download link
+#     """
+#     url = url.strip("/ ")
+#     file_id = url.split("/")[-1]
+#
+#     if url.split("/")[-2] == "l":
+#         info_link = f"https://pixeldrain.com/api/list/{file_id}"
+#         dl_link = f"https://pixeldrain.com/api/list/{file_id}/zip?download"
+#     else:
+#         info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
+#         dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
+#
+#     with create_scraper() as session:
+#         try:
+#             resp = session.get(info_link).json()
+#         except Exception as e:
+#             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+#
+#     if resp["success"]:
+#         return dl_link
+#     else:
+#         raise DirectDownloadLinkException(
+#             f"ERROR: Can't download due {resp['message']}."
+#         )
+#
+#
+# def pixeldrain_single_file(file_id):
+#     """Handle single file downloads - returns data in format expected by add_direct_download"""
+#     try:
+#         # Get file info from Pixeldrain API
+#         api_url = f"https://pixeldrain.com/api/file/{file_id}/info"
+#         response = get(api_url)
+#         response.raise_for_status()
+#
+#         file_data = response.json()
+#
+#         if not file_data.get('success', True):  # Single file API doesn't always return success field
+#             raise DirectDownloadLinkException("ERROR: Failed to retrieve file information")
+#
+#         # Get direct download URL
+#         base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+#         download_url = base_response.url + file_id
+#
+#         file_name = file_data.get('name', f'file_{file_id}')
+#         file_size = file_data.get('size', 0)
+#
+#         # Return data in the format expected by add_direct_download
+#         return {
+#             'title': file_name,
+#             'total_size': file_size,
+#             'contents': [{
+#                 'filename': file_name,
+#                 'url': download_url,
+#                 'size': file_size,
+#                 'path': ''
+#             }],
+#             'header': None  # No special headers needed for pixeldrain
+#         }
+#
+#     except requests.RequestException as e:
+#         raise DirectDownloadLinkException(f"ERROR: API request failed - {str(e)}")
+#     except Exception as e:
+#         raise DirectDownloadLinkException(f"ERROR: Single file processing failed - {str(e)}")
+#
+#
+# def pixeldrain_folder(folder_id):
+#     """Handle folder downloads - returns data in format expected by add_direct_download"""
+#     try:
+#         # Get folder information from Pixeldrain API
+#         api_url = f"https://pixeldrain.com/api/list/{folder_id}"
+#         response = get(api_url)
+#         response.raise_for_status()
+#
+#         folder_data = response.json()
+#
+#         if not folder_data.get('success', False):
+#             raise DirectDownloadLinkException("ERROR: Failed to retrieve folder information")
+#
+#         # Get base URL for downloads
+#         base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+#         base_url = base_response.url
+#
+#         # Create contents list in the format expected by add_direct_download
+#         contents = []
+#         total_size = 0
+#
+#         for file_info in folder_data.get('files', []):
+#             file_id = file_info.get('id')
+#             file_name = file_info.get('name', 'unknown')
+#             file_size = file_info.get('size', 0)
+#
+#             if file_id:
+#                 download_link = base_url + file_id
+#                 contents.append({
+#                     'filename': file_name,
+#                     'url': download_link,
+#                     'size': file_size,
+#                     'path': ''
+#                 })
+#                 total_size += file_size
+#
+#         # Return data in the format expected by add_direct_download
+#         return {
+#             'title': folder_data.get('title', 'Unknown Folder'),
+#             'total_size': total_size,
+#             'contents': contents,
+#             'header': None  # No special headers needed for pixeldrain
+#         }
+#
+#     except requests.RequestException as e:
+#         raise DirectDownloadLinkException(f"ERROR: API request failed - {str(e)}")
+#     except Exception as e:
+#         raise DirectDownloadLinkException(f"ERROR: Folder processing failed - {str(e)}")
+
+
+def pixeldrain(url, api_key=None):
     """
     Handle both single file URLs and folder URLs from Pixeldrain
     Returns direct download link for single files or list of download links for folders
     Falls back to original simple mode if new implementation fails
+
+    Args:
+        url: Pixeldrain URL
+        api_key: Optional API key for authenticated requests
     """
     try:
         url = url.rstrip("/")
@@ -1056,14 +1206,14 @@ def pixeldrain(url):
 
         # Check if it's a folder URL (contains '/l/')
         if '/l/' in url:
-            return pixeldrain_folder(code)
+            return pixeldrain_folder(code, api_key)
         else:
-            return pixeldrain_single_file(code)
+            return pixeldrain_single_file(code, api_key)
 
     except Exception as e:
         # Fallback to original simple download mode
         try:
-            return pixeldrain_fallback_mode(url)
+            return pixeldrain_fallback_mode(url, api_key)
         except Exception as fallback_error:
             # If both methods fail, raise the original error with fallback error info
             raise DirectDownloadLinkException(
@@ -1073,7 +1223,38 @@ def pixeldrain(url):
             )
 
 
-def pixeldrain_fallback_mode(url):
+def create_auth_headers(api_key):
+    """
+    Create authentication headers for Pixeldrain API
+    Uses HTTP Basic Auth with empty username and API key as password
+    """
+    if not api_key:
+        return {}
+
+    # Create base64 encoded auth string (username:password format, username is empty)
+    auth_string = f":{api_key}"
+    encoded_auth = b64encode(auth_string.encode()).decode()
+
+    return {
+        "Authorization": f"Basic {encoded_auth}"
+    }
+
+
+def make_authenticated_request(url, api_key=None, **kwargs):
+    """
+    Make a request with optional authentication
+    """
+    LOGGER("API",PIXELDRAIN_API_KEY)
+    headers = kwargs.get('headers', {})
+    if api_key:
+        auth_headers = create_auth_headers(api_key)
+        headers.update(auth_headers)
+        kwargs['headers'] = headers
+
+    return requests.get(url, **kwargs)
+
+
+def pixeldrain_fallback_mode(url, api_key=None):
     """
     Original/fallback implementation - returns simple direct download link
     """
@@ -1087,26 +1268,27 @@ def pixeldrain_fallback_mode(url):
         info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
         dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
 
-    with create_scraper() as session:
-        try:
-            resp = session.get(info_link).json()
-        except Exception as e:
-            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+    try:
+        resp = make_authenticated_request(info_link, api_key)
+        resp.raise_for_status()
+        resp_json = resp.json()
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
 
-    if resp["success"]:
+    if resp_json.get("success", True):  # Some endpoints don't return success field
         return dl_link
     else:
         raise DirectDownloadLinkException(
-            f"ERROR: Can't download due {resp['message']}."
+            f"ERROR: Can't download due {resp_json.get('message', 'Unknown error')}."
         )
 
 
-def pixeldrain_single_file(file_id):
+def pixeldrain_single_file(file_id, api_key=None):
     """Handle single file downloads - returns data in format expected by add_direct_download"""
     try:
         # Get file info from Pixeldrain API
         api_url = f"https://pixeldrain.com/api/file/{file_id}/info"
-        response = get(api_url)
+        response = make_authenticated_request(api_url, api_key)
         response.raise_for_status()
 
         file_data = response.json()
@@ -1114,9 +1296,13 @@ def pixeldrain_single_file(file_id):
         if not file_data.get('success', True):  # Single file API doesn't always return success field
             raise DirectDownloadLinkException("ERROR: Failed to retrieve file information")
 
-        # Get direct download URL
-        base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
-        download_url = base_response.url + file_id
+        # For authenticated requests, use the direct API download endpoint
+        if api_key:
+            download_url = f"https://pixeldrain.com/api/file/{file_id}?download"
+        else:
+            # Get direct download URL from proxy service for unauthenticated requests
+            base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+            download_url = base_response.url + file_id
 
         file_name = file_data.get('name', f'file_{file_id}')
         file_size = file_data.get('size', 0)
@@ -1129,9 +1315,10 @@ def pixeldrain_single_file(file_id):
                 'filename': file_name,
                 'url': download_url,
                 'size': file_size,
-                'path': ''
+                'path': '',
+                'headers': create_auth_headers(api_key) if api_key else None
             }],
-            'header': None  # No special headers needed for pixeldrain
+            'header': create_auth_headers(api_key) if api_key else None
         }
 
     except requests.RequestException as e:
@@ -1140,12 +1327,12 @@ def pixeldrain_single_file(file_id):
         raise DirectDownloadLinkException(f"ERROR: Single file processing failed - {str(e)}")
 
 
-def pixeldrain_folder(folder_id):
+def pixeldrain_folder(folder_id, api_key=None):
     """Handle folder downloads - returns data in format expected by add_direct_download"""
     try:
         # Get folder information from Pixeldrain API
         api_url = f"https://pixeldrain.com/api/list/{folder_id}"
-        response = get(api_url)
+        response = make_authenticated_request(api_url, api_key)
         response.raise_for_status()
 
         folder_data = response.json()
@@ -1153,13 +1340,10 @@ def pixeldrain_folder(folder_id):
         if not folder_data.get('success', False):
             raise DirectDownloadLinkException("ERROR: Failed to retrieve folder information")
 
-        # Get base URL for downloads
-        base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
-        base_url = base_response.url
-
         # Create contents list in the format expected by add_direct_download
         contents = []
         total_size = 0
+        auth_headers = create_auth_headers(api_key) if api_key else None
 
         for file_info in folder_data.get('files', []):
             file_id = file_info.get('id')
@@ -1167,12 +1351,21 @@ def pixeldrain_folder(folder_id):
             file_size = file_info.get('size', 0)
 
             if file_id:
-                download_link = base_url + file_id
+                if api_key:
+                    # Use direct API download for authenticated requests
+                    download_link = f"https://pixeldrain.com/api/file/{file_id}?download"
+                else:
+                    # Use proxy service for unauthenticated requests
+                    base_response = get("https://pd.cybar.xyz/", allow_redirects=True)
+                    base_url = base_response.url
+                    download_link = base_url + file_id
+
                 contents.append({
                     'filename': file_name,
                     'url': download_link,
                     'size': file_size,
-                    'path': ''
+                    'path': '',
+                    'headers': auth_headers
                 })
                 total_size += file_size
 
@@ -1181,14 +1374,13 @@ def pixeldrain_folder(folder_id):
             'title': folder_data.get('title', 'Unknown Folder'),
             'total_size': total_size,
             'contents': contents,
-            'header': None  # No special headers needed for pixeldrain
+            'header': auth_headers
         }
 
     except requests.RequestException as e:
         raise DirectDownloadLinkException(f"ERROR: API request failed - {str(e)}")
     except Exception as e:
         raise DirectDownloadLinkException(f"ERROR: Folder processing failed - {str(e)}")
-
 
 def antfiles(url):
     try:
