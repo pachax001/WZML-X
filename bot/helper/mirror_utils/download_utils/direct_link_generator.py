@@ -1202,6 +1202,10 @@ def pixeldrain(url, api_key=None):
         url: Pixeldrain URL
         api_key: Optional API key for authenticated requests
     """
+    if api_key:
+        logger.info(f"Using API key for Pixeldrain request: {url[:50]}...")
+    else:
+        logger.info(f"No API key provided for Pixeldrain request: {url[:50]}...")
     try:
         url = url.rstrip("/")
         code = url.split("/")[-1].split("?", 1)[0]
@@ -1248,6 +1252,7 @@ def make_authenticated_request(url, api_key=None, **kwargs):
     """
     headers = kwargs.get('headers', {})
     if api_key:
+        LOGGER.info(f"Making authenticated request to: {url}")
         auth_headers = create_auth_headers(api_key)
         headers.update(auth_headers)
         kwargs['headers'] = headers
