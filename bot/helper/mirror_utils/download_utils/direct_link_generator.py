@@ -1203,9 +1203,9 @@ def pixeldrain(url, api_key=None):
         api_key: Optional API key for authenticated requests
     """
     if api_key:
-        logger.info(f"Using API key for Pixeldrain request: {url[:50]}...")
+        LOGGER.info(f"Using API key for Pixeldrain request: {url[:50]}...")
     else:
-        logger.info(f"No API key provided for Pixeldrain request: {url[:50]}...")
+        LOGGER.info(f"No API key provided for Pixeldrain request: {url[:50]}...")
     try:
         url = url.rstrip("/")
         code = url.split("/")[-1].split("?", 1)[0]
