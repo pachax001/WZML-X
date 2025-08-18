@@ -31,18 +31,40 @@ class DirectListener:
         for content in contents:
             if self.__is_cancelled:
                 break
+
+            # Create a copy of base options for this file
+            file_a2c_opt = self.__a2c_opt.copy()
+
+            # Set directory
             if content["path"]:
-                self.__a2c_opt["dir"] = f"{self.__path}/{content['path']}"
+                file_a2c_opt["dir"] = f"{self.__path}/{content['path']}"
             else:
-                self.__a2c_opt["dir"] = self.__path
+                file_a2c_opt["dir"] = self.__path
+
+            # Set filename
             filename = content["filename"]
-            self.__a2c_opt["out"] = filename
+            file_a2c_opt["out"] = filename
+
+            # Handle per-file headers (this is the important part!)
+            if file_headers := content.get("headers"):
+                if isinstance(file_headers, dict):
+                    # Convert header dict to aria2c header format
+                    header_strings = [f"{k}: {v}" for k, v in file_headers.items()]
+                    file_a2c_opt["header"] = header_strings
+                    LOGGER.info(f"Adding file-specific headers for {filename}: {file_headers}")
+                else:
+                    file_a2c_opt["header"] = file_headers
+
             try:
-                self.task = aria2.add_uris([content["url"]], self.__a2c_opt, position=0)
+                self.task = aria2.add_uris([content["url"]], file_a2c_opt, position=0)
+                LOGGER.info(f"Started download: {filename} with URL: {content['url']}")
+                if file_headers:
+                    LOGGER.info(f"Using authentication headers for: {filename}")
             except Exception as e:
                 self.__failed += 1
                 LOGGER.error(f"Unable to download {filename} due to: {e}")
                 continue
+
             self.task = self.task.live
             while True:
                 if self.__is_cancelled:
@@ -60,9 +82,11 @@ class DirectListener:
                 elif self.task.is_complete:
                     self.__proc_bytes += self.task.total_length
                     self.task.remove(True)
+                    LOGGER.info(f"Successfully downloaded: {filename}")
                     break
                 sleep(1)
             self.task = None
+
         if self.__is_cancelled:
             return
         if self.__failed == len(contents):
