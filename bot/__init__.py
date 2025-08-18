@@ -589,6 +589,10 @@ FILELION_API = environ.get("FILELION_API", "")
 if len(FILELION_API) == 0:
     FILELION_API = ""
 
+PIXELDRAIN_API_KEY = environ.get("PIXELDRAIN_API_KEY", "")
+if len(PIXELDRAIN_API_KEY) == 0:
+    PIXELDRAIN_API_KEY = ""
+
 IMDB_TEMPLATE = environ.get("IMDB_TEMPLATE", "")
 if len(IMDB_TEMPLATE) == 0:
     IMDB_TEMPLATE = """<b>Title: </b> {title} [{year}]
@@ -750,6 +754,7 @@ config_dict = {
     "USE_SERVICE_ACCOUNTS": USE_SERVICE_ACCOUNTS,
     "WEB_PINCODE": WEB_PINCODE,
     "YT_DLP_OPTIONS": YT_DLP_OPTIONS,
+    "PIXELDRAIN_API_KEY": PIXELDRAIN_API_KEY,
 }
 
 if GDRIVE_ID:
