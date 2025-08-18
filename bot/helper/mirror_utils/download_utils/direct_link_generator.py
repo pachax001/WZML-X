@@ -19,7 +19,7 @@ from http.cookiejar import MozillaCookieJar
 import requests
 import base64
 
-from bot import LOGGER, config_dict, PIXELDRAIN_API_KEY
+from bot import LOGGER, config_dict
 from bot.helper.ext_utils.bot_utils import (
     get_readable_time,
     is_share_link,
