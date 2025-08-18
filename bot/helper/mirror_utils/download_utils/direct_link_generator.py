@@ -17,6 +17,7 @@ from cloudscraper import create_scraper
 from lk21 import Bypass
 from http.cookiejar import MozillaCookieJar
 import requests
+import base64
 
 from bot import LOGGER, config_dict, PIXELDRAIN_API_KEY
 from bot.helper.ext_utils.bot_utils import (
@@ -1233,7 +1234,7 @@ def create_auth_headers(api_key):
 
     # Create base64 encoded auth string (username:password format, username is empty)
     auth_string = f":{api_key}"
-    encoded_auth = b64encode(auth_string.encode()).decode()
+    encoded_auth = base64.b64encode(auth_string.encode()).decode()
 
     return {
         "Authorization": f"Basic {encoded_auth}"
@@ -1244,7 +1245,6 @@ def make_authenticated_request(url, api_key=None, **kwargs):
     """
     Make a request with optional authentication
     """
-    LOGGER.info("API",PIXELDRAIN_API_KEY)
     headers = kwargs.get('headers', {})
     if api_key:
         auth_headers = create_auth_headers(api_key)
