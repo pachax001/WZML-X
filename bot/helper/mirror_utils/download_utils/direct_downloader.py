@@ -54,6 +54,7 @@ async def add_direct_download(details, path, listener, foldername):
     [a2c_opt.pop(k) for k in aria2c_global if k in aria2_options]
     if header := details.get("header"):
         a2c_opt["header"] = header
+        LOGGER.info(f"Adding header: {header}")
     a2c_opt["follow-torrent"] = "false"
     a2c_opt["follow-metalink"] = "false"
     directListener = DirectListener(foldername, size, path, listener, a2c_opt)
