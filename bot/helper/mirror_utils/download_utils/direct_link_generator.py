@@ -605,7 +605,7 @@ def direct_link_generator(link):
     elif "1drv.ms" in domain:
         return onedrive(link)
     elif "pixeldrain.com" in domain:
-        return pixeldrain(link)
+        return pixeldrain(link,PIXELDRAIN_API_KEY)
     elif "antfiles.com" in domain:
         return antfiles(link)
     elif "racaty" in domain:
