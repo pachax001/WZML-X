@@ -1244,7 +1244,7 @@ def make_authenticated_request(url, api_key=None, **kwargs):
     """
     Make a request with optional authentication
     """
-    LOGGER("API",PIXELDRAIN_API_KEY)
+    LOGGER.info("API",PIXELDRAIN_API_KEY)
     headers = kwargs.get('headers', {})
     if api_key:
         auth_headers = create_auth_headers(api_key)
