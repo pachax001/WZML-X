@@ -1082,6 +1082,63 @@ def pixeldrain(url, api_key=None):
                 f"Fallback method: {str(fallback_error)}"
             )
 
+def create_auth_headers(api_key):
+    """
+    Create authentication headers for Pixeldrain API
+    Uses HTTP Basic Auth with empty username and API key as password
+    """
+    if not api_key:
+        return {}
+
+    # Create base64 encoded auth string (username:password format, username is empty)
+    auth_string = f":{api_key}"
+    encoded_auth = base64.b64encode(auth_string.encode()).decode()
+
+    return {
+        "Authorization": f"Basic {encoded_auth}"
+    }
+
+
+def make_authenticated_request(url, api_key=None, **kwargs):
+    """
+    Make a request with optional authentication
+    """
+    headers = kwargs.get('headers', {})
+    if api_key:
+        LOGGER.info(f"Making authenticated request to: {url}")
+        auth_headers = create_auth_headers(api_key)
+        headers.update(auth_headers)
+        kwargs['headers'] = headers
+
+    return requests.get(url, **kwargs)
+
+def pixeldrain_fallback_mode(url, api_key=None):
+    """
+    Original/fallback implementation - returns simple direct download link
+    """
+    url = url.strip("/ ")
+    file_id = url.split("/")[-1]
+
+    if url.split("/")[-2] == "l":
+        info_link = f"https://pixeldrain.com/api/list/{file_id}"
+        dl_link = f"https://pixeldrain.com/api/list/{file_id}/zip?download"
+    else:
+        info_link = f"https://pixeldrain.com/api/file/{file_id}/info"
+        dl_link = f"https://pixeldrain.com/api/file/{file_id}?download"
+
+    try:
+        resp = make_authenticated_request(info_link, api_key)
+        resp.raise_for_status()
+        resp_json = resp.json()
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+    if resp_json.get("success", True):  # Some endpoints don't return success field
+        return dl_link
+    else:
+        raise DirectDownloadLinkException(
+            f"ERROR: Can't download due {resp_json.get('message', 'Unknown error')}."
+        )
 
 def create_download_url_variants(file_id, api_key=None):
     """
