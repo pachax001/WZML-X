@@ -32,60 +32,18 @@ class DirectListener:
             if self.__is_cancelled:
                 break
 
-            # Create a copy of base options for this file
-            file_a2c_opt = self.__a2c_opt.copy()
-
-            # Set directory
-            if content["path"]:
-                file_a2c_opt["dir"] = f"{self.__path}/{content['path']}"
-            else:
-                file_a2c_opt["dir"] = self.__path
-
-            # Set filename
             filename = content["filename"]
-            file_a2c_opt["out"] = filename
+            success = False
 
-            # Handle per-file headers (this is the important part!)
-            if file_headers := content.get("headers"):
-                if isinstance(file_headers, dict):
-                    # Convert header dict to aria2c header format
-                    header_strings = [f"{k}: {v}" for k, v in file_headers.items()]
-                    file_a2c_opt["header"] = header_strings
-                    LOGGER.info(f"Adding file-specific headers for {filename}: {file_headers}")
-                else:
-                    file_a2c_opt["header"] = file_headers
+            # Try progressive fallback if url_variants exist
+            if 'url_variants' in content:
+                success = self._download_with_fallback(content)
+            else:
+                # Fallback to original method
+                success = self._download_original_method(content)
 
-            try:
-                self.task = aria2.add_uris([content["url"]], file_a2c_opt, position=0)
-                LOGGER.info(f"Started download: {filename} with URL: {content['url']}")
-                if file_headers:
-                    LOGGER.info(f"Using authentication headers for: {filename}")
-            except Exception as e:
+            if not success:
                 self.__failed += 1
-                LOGGER.error(f"Unable to download {filename} due to: {e}")
-                continue
-
-            self.task = self.task.live
-            while True:
-                if self.__is_cancelled:
-                    if self.task:
-                        self.task.remove(True, True)
-                    break
-                self.task = self.task.live
-                if error_message := self.task.error_message:
-                    self.__failed += 1
-                    LOGGER.error(
-                        f"Unable to download {self.task.name} due to: {error_message}"
-                    )
-                    self.task.remove(True, True)
-                    break
-                elif self.task.is_complete:
-                    self.__proc_bytes += self.task.total_length
-                    self.task.remove(True)
-                    LOGGER.info(f"Successfully downloaded: {filename}")
-                    break
-                sleep(1)
-            self.task = None
 
         if self.__is_cancelled:
             return
@@ -95,6 +53,114 @@ class DirectListener:
             )
             return
         async_to_sync(self.__listener.onDownloadComplete)
+
+    def _download_with_fallback(self, content):
+        """Download using progressive fallback method"""
+        filename = content["filename"]
+        url_variants = content.get("url_variants", [])
+        file_id = content.get("file_id")
+        api_key = content.get("api_key")
+
+        for attempt, (url, headers, method) in enumerate(url_variants, 1):
+            if self.__is_cancelled:
+                return False
+
+            LOGGER.info(f"Attempting download #{attempt} for {filename} using {method} method")
+
+            # Create file-specific options
+            file_a2c_opt = self.__a2c_opt.copy()
+
+            # Set directory and filename
+            if content["path"]:
+                file_a2c_opt["dir"] = f"{self.__path}/{content['path']}"
+            else:
+                file_a2c_opt["dir"] = self.__path
+            file_a2c_opt["out"] = filename
+
+            # Add headers if present
+            if headers:
+                if isinstance(headers, dict):
+                    header_strings = [f"{k}: {v}" for k, v in headers.items()]
+                    file_a2c_opt["header"] = header_strings
+                    LOGGER.info(f"Using {method} headers for {filename}")
+                else:
+                    file_a2c_opt["header"] = headers
+
+            try:
+                self.task = aria2.add_uris([url], file_a2c_opt, position=0)
+                LOGGER.info(f"Started download attempt #{attempt}: {filename} with {method} method")
+
+                if self._wait_for_download_completion(filename, method):
+                    return True  # Success
+                else:
+                    # This attempt failed, continue to next variant
+                    continue
+
+            except Exception as e:
+                LOGGER.error(f"Download attempt #{attempt} failed for {filename} using {method}: {e}")
+                continue
+
+        # All attempts failed
+        if not api_key and len(url_variants) < 3:  # No API key was available
+            LOGGER.error(
+                f"All download attempts failed for {filename}. API key not set - cannot try authenticated download.")
+            async_to_sync(self.__listener.onDownloadError,
+                          f"Download failed for {filename}. Consider setting up Pixeldrain API key for authenticated downloads.")
+        else:
+            LOGGER.error(f"All download attempts failed for {filename} including authenticated method.")
+
+        return False
+
+    def _download_original_method(self, content):
+        """Fallback to original download method"""
+        filename = content["filename"]
+
+        file_a2c_opt = self.__a2c_opt.copy()
+
+        if content["path"]:
+            file_a2c_opt["dir"] = f"{self.__path}/{content['path']}"
+        else:
+            file_a2c_opt["dir"] = self.__path
+        file_a2c_opt["out"] = filename
+
+        if file_headers := content.get("headers"):
+            if isinstance(file_headers, dict):
+                header_strings = [f"{k}: {v}" for k, v in file_headers.items()]
+                file_a2c_opt["header"] = header_strings
+            else:
+                file_a2c_opt["header"] = file_headers
+
+        try:
+            self.task = aria2.add_uris([content["url"]], file_a2c_opt, position=0)
+            LOGGER.info(f"Started download (original method): {filename}")
+
+            return self._wait_for_download_completion(filename, "original")
+
+        except Exception as e:
+            LOGGER.error(f"Unable to download {filename} due to: {e}")
+            return False
+
+    def _wait_for_download_completion(self, filename, method):
+        """Wait for download completion and handle errors"""
+        self.task = self.task.live
+        while True:
+            if self.__is_cancelled:
+                if self.task:
+                    self.task.remove(True, True)
+                return False
+
+            self.task = self.task.live
+            if error_message := self.task.error_message:
+                LOGGER.error(f"Download failed for {filename} using {method} method: {error_message}")
+                self.task.remove(True, True)
+                return False
+            elif self.task.is_complete:
+                self.__proc_bytes += self.task.total_length
+                self.task.remove(True)
+                LOGGER.info(f"Successfully downloaded: {filename} using {method} method")
+                self.task = None
+                return True
+            sleep(1)
 
     async def cancel_download(self):
         self.__is_cancelled = True
