@@ -1149,8 +1149,8 @@ def create_download_url_variants(file_id, api_key=None):
 
     # 1. Proxy method (first attempt)
     try:
-        base_response = requests.get("https://pd.1drv.eu.org/", allow_redirects=True, timeout=10)
-        proxy_url = base_response.url + file_id
+        #base_response = requests.get("https://pd.cybar.xyz/", allow_redirects=True, timeout=10)
+        proxy_url = "https://pd.1drv.eu.org/" + file_id
         variants.append((proxy_url, {}, "proxy"))
     except:
         pass
