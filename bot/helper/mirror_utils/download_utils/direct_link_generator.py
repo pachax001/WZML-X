@@ -1154,16 +1154,17 @@ def create_download_url_variants(file_id, api_key=None):
     #     variants.append((proxy_url, {}, "proxy"))
     # except:
     #     pass
+    direct_url = f"https://pixeldrain.com/api/file/{file_id}?download"
     if api_key:
         auth_headers = create_auth_headers(api_key)
         variants.append((direct_url, auth_headers, "authenticated"))
 
     # 2. Direct Pixeldrain method (second attempt)
-    direct_url = f"https://pixeldrain.com/api/file/{file_id}?download"
+    
     variants.append((direct_url, {}, "direct"))
 
     # 3. Authenticated method (third attempt, if API key available)
-    
+
 
     return variants
 
