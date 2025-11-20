@@ -1148,12 +1148,12 @@ def create_download_url_variants(file_id, api_key=None):
     variants = []
 
     # 1. Proxy method (first attempt)
-    try:
-        #base_response = requests.get("https://pd.cybar.xyz/", allow_redirects=True, timeout=10)
-        proxy_url = "https://pd.1drv.eu.org/" + file_id
-        variants.append((proxy_url, {}, "proxy"))
-    except:
-        pass
+    # try:
+    #     #base_response = requests.get("https://pd.cybar.xyz/", allow_redirects=True, timeout=10)
+    #     proxy_url = "https://pd.1drv.eu.org/" + file_id
+    #     variants.append((proxy_url, {}, "proxy"))
+    # except:
+    #     pass
 
     # 2. Direct Pixeldrain method (second attempt)
     direct_url = f"https://pixeldrain.com/api/file/{file_id}?download"
