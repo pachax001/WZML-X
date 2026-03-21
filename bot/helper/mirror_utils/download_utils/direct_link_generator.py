@@ -1533,7 +1533,7 @@ def gofile(url, auth):
     def __fetch_links(session, _id, folderPath=""):
         _url = f"https://api.gofile.io/contents/{_id}?cache=true"
         time_slot = int(time()) // 14400
-        raw = f"{user_agent}::en-US::{token}::{time_slot}::gf2026x"
+        raw = f"{user_agent}::en-US::{token}::{time_slot}::f4s58gs6"
         wt = sha256(raw.encode()).hexdigest()
         headers = {
             "User-Agent": user_agent,
